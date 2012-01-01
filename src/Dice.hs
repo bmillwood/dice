@@ -8,7 +8,7 @@ module Dice (
   withState
  ) where
 
-import Control.Applicative ((<$), (<$>), pure)
+import Control.Applicative ((<$), (<$>))
 import Control.Category (id, (.))
 import Control.Monad (guard, replicateM)
 import Control.Monad.Reader (asks)
@@ -65,7 +65,7 @@ fetchRollerQ name = asks (M.lookup name . unDS)
 -- | Return False if roller already exists
 registerRollerU :: T.Text -> L.ByteString -> UTCTime -> Update DiceState Bool
 registerRollerU name pwhash date =
-  maybe (True <$ reg) (const (pure False)) =<< runQuery (fetchRollerQ name)
+  maybe (True <$ reg) (const (return False)) =<< runQuery (fetchRollerQ name)
  where
   reg = modify (setL (rollerL name) (Just newRoller))
   newRoller = MkRoller {
@@ -78,9 +78,9 @@ registerRollerU name pwhash date =
 rollForU :: T.Text -> L.ByteString -> DiceRoll -> Update DiceState Bool
 rollForU name pwhash roll = runQuery (fetchRollerQ name) >>= update
  where
-  update Nothing = pure False
+  update Nothing = return False
   update (Just r) 
-    | pwhash /= rollerPW r = pure False
+    | pwhash /= rollerPW r = return False
     | otherwise = True <$ modify (setL (rollerL name)
         (Just (modL rollerRollsL (roll Q.<|) r)))
 
@@ -110,6 +110,6 @@ withState fn = do
         rollTime = now,
         rollSpec = spec,
         rollResult = res }
-      pure $ res <$ guard authed }
+      return $ res <$ guard authed }
   closeAcidState h
   return res
