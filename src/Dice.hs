@@ -42,7 +42,7 @@ data DiceRoll = MkRoll {
  deriving (Show, Typeable)
 data DiceRoller = MkRoller {
   rollerName :: T.Text,
-  rollerPW :: L.ByteString,
+  rollerPW :: L.ByteString, -- hashed
   rollerDate :: UTCTime,
   rollerRolls :: Q.Seq DiceRoll }
  deriving (Show, Typeable)
@@ -63,24 +63,24 @@ fetchRollerQ :: T.Text -> Query DiceState (Maybe DiceRoller)
 fetchRollerQ name = asks (M.lookup name . unDS)
 
 -- | Return False if roller already exists
-registerRollerU :: T.Text -> T.Text -> UTCTime -> Update DiceState Bool
-registerRollerU name pw date =
+registerRollerU :: T.Text -> L.ByteString -> UTCTime -> Update DiceState Bool
+registerRollerU name pwhash date =
   maybe (True <$ reg) (const (pure False)) =<< runQuery (fetchRollerQ name)
  where
   reg = modify (setL (rollerL name) (Just newRoller))
   newRoller = MkRoller {
     rollerName = name,
-    rollerPW = enhashen pw,
+    rollerPW = pwhash,
     rollerDate = date,
     rollerRolls = Q.empty }
 
 -- | Return False if authentication failed (including if roller doesn't exist)
-rollForU :: T.Text -> T.Text -> DiceRoll -> Update DiceState Bool
-rollForU name pw roll = runQuery (fetchRollerQ name) >>= update
+rollForU :: T.Text -> L.ByteString -> DiceRoll -> Update DiceState Bool
+rollForU name pwhash roll = runQuery (fetchRollerQ name) >>= update
  where
   update Nothing = pure False
   update (Just r) 
-    | enhashen pw /= rollerPW r = pure False
+    | pwhash /= rollerPW r = pure False
     | otherwise = True <$ modify (setL (rollerL name)
         (Just (modL rollerRollsL (roll Q.<|) r)))
 
@@ -100,12 +100,12 @@ withState fn = do
     fetchRoller = query h . FetchRollerQ,
     registerRoller = \name pw -> do
       now <- getCurrentTime
-      update h (RegisterRollerU name pw now),
+      update h (RegisterRollerU name (enhashen pw) now),
     rollFor = \text pw reason spec@MkSpec{ specDice, specFaces } -> do
       now <- getCurrentTime
       res <- sum <$> replicateM (fromInteger specDice)
         (randomRIO (1, specFaces))
-      authed <- update h $ RollForU text pw MkRoll{
+      authed <- update h $ RollForU text (enhashen pw) MkRoll{
         rollReason = reason,
         rollTime = now,
         rollSpec = spec,
