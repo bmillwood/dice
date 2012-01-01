@@ -12,12 +12,18 @@ Description:
 
 Author:       Ben Millwood <haskell@benmachine.co.uk>
 Maintainer:   Ben Millwood <haskell@benmachine.co.uk>
+Bug-reports:  https://github.com/benmachine/dice/issues
 Copyright:    2011 Ben Millwood
 License:      BSD3
 License-file: LICENSE
 
 Build-type:  Simple
 Tested-with: GHC == 7.2.1
+
+-- Oddly, this needs to be placed under all the metadata
+Source-repository head
+  Type:     git
+  Location: git://github.com/benmachine/dice.git
 
 Executable dice.cgi
   Main-is:        Main.hs
