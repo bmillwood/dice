@@ -59,6 +59,11 @@ rollerL name = mapLens name . iso unDS MkDS
 rollerRollsL :: Lens DiceRoller (Q.Seq DiceRoll)
 rollerRollsL = lens rollerRolls (\rs r -> r { rollerRolls = rs })
 
+-- This needn't be in IO but in practice that's where it will be used.
+rollDice :: DiceSpec -> IO RollResult
+rollDice MkSpec{ specDice, specFaces } =
+  sum <$> replicateM (fromInteger specDice) (randomRIO (1, specFaces))
+
 fetchRollerQ :: T.Text -> Query DiceState (Maybe DiceRoller)
 fetchRollerQ name = asks (M.lookup name . unDS)
 
@@ -101,10 +106,9 @@ withState fn = do
     registerRoller = \name pw -> do
       now <- getCurrentTime
       update h (RegisterRollerU name (enhashen pw) now),
-    rollFor = \text pw reason spec@MkSpec{ specDice, specFaces } -> do
+    rollFor = \text pw reason spec -> do
       now <- getCurrentTime
-      res <- sum <$> replicateM (fromInteger specDice)
-        (randomRIO (1, specFaces))
+      res <- rollDice spec
       authed <- update h $ RollForU text (enhashen pw) MkRoll{
         rollReason = reason,
         rollTime = now,
