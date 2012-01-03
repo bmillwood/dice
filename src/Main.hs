@@ -23,10 +23,10 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
-    ["--help"] -> TL.putStrLn "I need somebody, not just anybody, etc."
-    ["--version"] -> TL.putStrLn "Internet dice roller, version ω"
+    ["--help"] -> putStrLn "I need somebody, not just anybody, etc."
+    ["--version"] -> putStrLn "Internet dice roller, version ω"
     [] -> putHtml =<< either return display =<< handlePost
-    _ -> TL.putStrLn "I don't want any arguments :("
+    _ -> putStrLn "I don't want any arguments :("
  where
   envToPerson = assocsToPerson <=< qstrToAssocs <=< lookup "QUERY_STRING"
   display a = maybe (pure noQuery) (mkPage a) =<<
