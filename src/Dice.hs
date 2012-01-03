@@ -106,10 +106,10 @@ withState fn = do
     registerRoller = \name pw -> do
       now <- getCurrentTime
       update h (RegisterRollerU name (enhashen pw) now),
-    rollFor = \text pw reason spec -> do
+    rollFor = \name pw reason spec -> do
       now <- getCurrentTime
       res <- rollDice spec
-      authed <- update h $ RollForU text (enhashen pw) MkRoll{
+      authed <- update h $ RollForU name (enhashen pw) MkRoll{
         rollReason = reason,
         rollTime = now,
         rollSpec = spec,
