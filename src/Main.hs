@@ -2,20 +2,23 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Main where
 
-import Control.Applicative ((<$), (<$>), pure)
-import Control.Monad ((<=<), guard)
+import Control.Applicative ((<$>), pure)
+import Control.Monad ((<=<))
+import qualified Data.ByteString as S
+import qualified Data.ByteString.Lazy as L
 import System.Environment (getArgs, getEnvironment)
 import qualified Data.Foldable as F
-import Data.List.Split (splitOn)
 import Data.Monoid (mempty)
 import Data.String (IsString)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.IO as TL
+import qualified Data.Text.Lazy.Encoding as TL
 import Prelude hiding (head)
 import Text.Blaze.Renderer.Text (renderHtml)
 import Text.Blaze.Html5 hiding (map)
 import qualified Text.Blaze.Html5.Attributes as A
+import Network.HTTP.Types (parseQueryText)
 
 import Dice
 
@@ -28,9 +31,16 @@ main = do
     [] -> putHtml =<< either return display =<< handlePost
     _ -> putStrLn "I don't want any arguments :("
  where
-  envToPerson = assocsToPerson <=< qstrToAssocs <=< lookup "QUERY_STRING"
   display a = maybe (pure noQuery) (mkPage a) =<<
     envToPerson <$> getEnvironment
+  envToPerson = assocsToPerson <=< parseSimpleQueryText . toBS <=<
+    lookup "QUERY_STRING"
+  -- there are possibly more direct ways to do this, but the text
+  -- library does it without adding any dependencies:
+  toBS = T.encodeUtf8 . T.pack
+
+parseSimpleQueryText :: S.ByteString -> Maybe [(T.Text,T.Text)]
+parseSimpleQueryText = mapM (\(a,b) -> (,) a <$> b) . parseQueryText
 
 noQuery :: Html
 noQuery = do
@@ -40,14 +50,14 @@ noQuery = do
     "let me know and I'll write better error handling."]
 
 putHtml :: Html -> IO ()
-putHtml = TL.putStr .
+putHtml = L.putStr . TL.encodeUtf8 .
   TL.append "Content-Type: text/html; charset=UTF-8\n\n" .
   renderHtml . docTypeHtml
 
 -- | Left: a complete error page; Right: prepend to body
 handlePost :: IO (Either Html Html)
 handlePost = do
-  postData <- qstrToAssocs <$> getContents
+  postData <- parseSimpleQueryText <$> S.getContents
   let
     parseFailure = pure . Left $ do
       mkHead "POST data parse failure"
@@ -55,30 +65,28 @@ handlePost = do
         p . text $ "The POST data didn't parse. This is a bit surprising."
         p . toHtml . show $ postData
   case postData of
-    Just [("registerName",ns),("registerPassword",ps),("registerConfirm",cs)]
-      | ps /= cs -> prepend $ "Your passwords don't match!"
+    Just [("registerName",n),("registerPassword",p),("registerConfirm",c)]
+      | p /= c -> prepend $ "Your passwords don't match!"
       | otherwise -> withState $ \DB{ registerRoller } -> do
           success <- registerRoller n p
           prepend . T.concat $ if success
             then ["Registration complete for: ", n]
             else [n, " already exists, sorry!"]
       where
-       n = T.pack ns
-       p = T.pack ps
-    Just [("rollName",ns),("rollPassword",ps),("rollReason",rs),
-        ("dice",ds),("faces",fs)] ->
+    Just [("rollName",n),("rollPassword",p),("rollReason",r),
+        ("dice",d),("faces",f)] ->
       prepend =<< maybe (pure "I don't think that's a number.") checkAuth
-        (readSpec ds fs)
+        (readSpec d f)
      where
-      readSpec ds fs = do
-        [(d,"")] <- Just (reads ds)
-        [(f,"")] <- Just (reads fs)
-        Just (MkSpec d f)
+      readSpec d f = do
+        [(dn,"")] <- Just (reads $ T.unpack d)
+        [(fn,"")] <- Just (reads $ T.unpack f)
+        Just (MkSpec dn fn)
       checkAuth spec = withState $ \DB{ rollFor } ->
         maybe
           "Authentication failed!"
           (T.append "You rolled: " . T.pack . show) <$>
-          rollFor (T.pack ns) (T.pack ps) (T.pack rs) spec
+          rollFor n p r spec
     Just [] -> pure (Right mempty)
     _ -> parseFailure
  where
@@ -170,15 +178,7 @@ formKey = "person"
 -- Nothing -> bad format
 -- Just Nothing -> good format, but no person
 -- Just (Just someone) -> someone.
-assocsToPerson :: [(String,String)] -> Maybe (Maybe T.Text)
+assocsToPerson :: [(T.Text,T.Text)] -> Maybe (Maybe T.Text)
 assocsToPerson [] = Just Nothing
-assocsToPerson [(k,v)] | k == formKey = Just (Just (T.pack v))
+assocsToPerson [(k,v)] | k == formKey = Just (Just v)
 assocsToPerson _ = Nothing
-
-qstrToAssocs :: String -> Maybe [(String,String)]
-qstrToAssocs "" = Just []
-qstrToAssocs str = (mapM toPair . splitOn "&") str
- where
-  toPair str = case break (== '=') str of
-    (_, []) -> Nothing
-    (xs, _ : ys) -> (xs, ys) <$ guard ('=' `notElem` ys)
