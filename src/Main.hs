@@ -5,7 +5,6 @@ module Main where
 import Control.Applicative ((<$>), pure)
 import Control.Monad ((<=<))
 import qualified Data.ByteString as S
-import qualified Data.ByteString.Lazy as L
 import System.Environment (getArgs, getEnvironment)
 import qualified Data.Foldable as F
 import Data.Monoid (mempty)
@@ -13,7 +12,7 @@ import Data.String (IsString)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Encoding as TL
+import qualified Data.Text.Lazy.IO as TL
 import Prelude hiding (head)
 import Text.Blaze.Renderer.Text (renderHtml)
 import Text.Blaze.Html5 hiding (map)
@@ -50,7 +49,7 @@ noQuery = do
     "let me know and I'll write better error handling."]
 
 putHtml :: Html -> IO ()
-putHtml = L.putStr . TL.encodeUtf8 .
+putHtml = TL.putStr .
   TL.append "Content-Type: text/html; charset=UTF-8\n\n" .
   renderHtml . docTypeHtml
 
