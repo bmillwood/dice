@@ -30,10 +30,12 @@ import Data.SafeCopy (base, deriveSafeCopy)
 import System.Random (randomRIO)
 
 data DiceSpec = MkSpec {
+  specTimes :: Integer,
   specDice :: Integer,
-  specFaces :: Integer }
+  specFaces :: Integer,
+  specMod :: Integer }
  deriving (Show, Typeable)
-type RollResult = Integer
+type RollResult = [Integer]
 data DiceRoll = MkRoll {
   rollReason :: T.Text,
   rollTime :: UTCTime,
@@ -61,8 +63,15 @@ rollerRollsL = lens rollerRolls (\rs r -> r { rollerRolls = rs })
 
 -- This needn't be in IO but in practice that's where it will be used.
 rollDice :: DiceSpec -> IO RollResult
-rollDice MkSpec{ specDice, specFaces } =
-  sum <$> replicateM (fromInteger specDice) (randomRIO (1, specFaces))
+rollDice MkSpec{ specTimes, specDice, specFaces, specMod } =
+  replicateM specTimes roll
+ where
+  roll = (specMod +) . sum <$>
+    replicateM (fromInteger specDice) (randomRIO (1, specFaces))
+
+-- ought to build the Text directly without using pack, but whatever.
+resultText :: RollResult -> T.Text
+resultText = T.unwords . map (T.pack . show)
 
 fetchRollerQ :: T.Text -> Query DiceState (Maybe DiceRoller)
 fetchRollerQ name = asks (M.lookup name . unDS)

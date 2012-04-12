@@ -73,14 +73,14 @@ handlePost = do
             else [n, " already exists, sorry!"]
       where
     Just [("rollName",n),("rollPassword",p),("rollReason",r),
-        ("dice",d),("faces",f)] ->
+        ("times",t),("dice",d),("faces",f),("mod",m)] ->
       prepend =<< maybe (pure "I don't think that's a number.") checkAuth
-        (readSpec d f)
+        (readSpec t d f m)
      where
-      readSpec d f = do
-        [(dn,"")] <- Just (reads $ T.unpack d)
-        [(fn,"")] <- Just (reads $ T.unpack f)
-        Just (MkSpec dn fn)
+      readSpec t d f m = pure MkSpec <*+> t <*+> d <*+> f <*+> m
+      f <*+> x = f <*> case reads x of
+        [(r,"")] -> Just r
+        _ -> Nothing
       checkAuth spec = withState $ \DB{ rollFor } ->
         maybe
           "Authentication failed!"
@@ -117,13 +117,19 @@ mkPage prep (Just person) = withState $ \DB{ fetchRoller } -> do
         table $
           F.forM_ rs $ \MkRoll{ rollSpec, rollResult, rollReason } -> tr $ do
             td (specToHtml rollSpec)
-            td (toHtml rollResult)
+            td (text . resultText $ rollResult)
             td (text rollReason)
         rollSubmitForm (Just person)
 
 specToHtml :: DiceSpec -> Html
-specToHtml MkSpec{ specDice, specFaces } =
-  toHtml specDice >> text "d" >> toHtml specFaces
+specToHtml MkSpec{ specTimes, specDice, specFaces, specMod } = do
+  toHtml specTimes
+  text "#"
+  toHtml specDice
+  text "d"
+  toHtml specFaces
+  text "+"
+  toHtml specMod
 
 rollerSelectForm :: Html
 rollerSelectForm = form ! A.method "get" ! A.id "rollerSelect" $ do
@@ -137,9 +143,13 @@ rollSubmitForm defaultPerson = form ! A.method "post" ! A.id "rollSubmit" $ do
   text "Name: " >> nameInput >> br
   text "Password: " >> passwordInput "rollPassword" >> br
   text "Reason: " >> textInput "rollReason" >> br
+  textInput "times" ! A.id "timesInput"
+  text "#"
   textInput "dice" ! A.id "diceInput"
   text "d"
   textInput "faces" ! A.id "facesInput"
+  text "+"
+  textInput "mod" ! A.id "modInput"
   br
   submitButton "Roll!"
  where
