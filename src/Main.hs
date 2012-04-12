@@ -143,13 +143,13 @@ rollSubmitForm defaultPerson = form ! A.method "post" ! A.id "rollSubmit" $ do
   text "Name: " >> nameInput >> br
   text "Password: " >> passwordInput "rollPassword" >> br
   text "Reason: " >> textInput "rollReason" >> br
-  textInput "times" ! A.id "timesInput"
+  textInput "times" ! A.id "timesInput" ! A.value "1"
   text "#"
   textInput "dice" ! A.id "diceInput"
   text "d"
   textInput "faces" ! A.id "facesInput"
   text "+"
-  textInput "mod" ! A.id "modInput"
+  textInput "mod" ! A.id "modInput" ! A.value "0"
   br
   submitButton "Roll!"
  where
