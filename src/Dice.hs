@@ -5,11 +5,12 @@ module Dice (
   DiceRoller(..),
   DiceSpec(..),
   Dicetabase(..),
+  resultText,
   withState
  ) where
 
 import Control.Applicative ((<$), (<$>))
-import Control.Category (id, (.))
+import Control.Category ((.))
 import Control.Monad (guard, replicateM)
 import Control.Monad.Reader (asks)
 import Control.Monad.State (modify)
@@ -64,7 +65,7 @@ rollerRollsL = lens rollerRolls (\rs r -> r { rollerRolls = rs })
 -- This needn't be in IO but in practice that's where it will be used.
 rollDice :: DiceSpec -> IO RollResult
 rollDice MkSpec{ specTimes, specDice, specFaces, specMod } =
-  replicateM specTimes roll
+  replicateM (fromInteger specTimes) roll
  where
   roll = (specMod +) . sum <$>
     replicateM (fromInteger specDice) (randomRIO (1, specFaces))

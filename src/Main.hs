@@ -2,7 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Main where
 
-import Control.Applicative ((<$>), pure)
+import Control.Applicative ((<$>), (<*>), pure)
 import Control.Monad ((<=<))
 import qualified Data.ByteString as S
 import System.Environment (getArgs, getEnvironment)
@@ -78,7 +78,7 @@ handlePost = do
         (readSpec t d f m)
      where
       readSpec t d f m = pure MkSpec <*+> t <*+> d <*+> f <*+> m
-      f <*+> x = f <*> case reads x of
+      f <*+> x = f <*> case reads (T.unpack x) of
         [(r,"")] -> Just r
         _ -> Nothing
       checkAuth spec = withState $ \DB{ rollFor } ->
