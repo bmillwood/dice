@@ -140,17 +140,18 @@ rollerSelectForm = form ! A.method "get" ! A.id "rollerSelect" $ do
 rollSubmitForm :: Maybe T.Text -> Html
 rollSubmitForm defaultPerson = form ! A.method "post" ! A.id "rollSubmit" $ do
   p (text "Roll a die:")
-  text "Name: " >> nameInput >> br
-  text "Password: " >> passwordInput "rollPassword" >> br
-  text "Reason: " >> textInput "rollReason" >> br
-  textInput "times" ! A.id "timesInput" ! A.value "1"
-  text "#"
-  textInput "dice" ! A.id "diceInput"
-  text "d"
-  textInput "faces" ! A.id "facesInput"
-  text "+"
-  textInput "mod" ! A.id "modInput" ! A.value "0"
-  br
+  table . mapM_ (\(t,i) -> tr (td (text t) >> td i)) $ [
+    ("Name:", nameInput),
+    ("Password:", passwordInput "rollPassword"),
+    ("Reason:", textInput "rollReason"),
+    ("Roll:", do
+      textInput "times" ! A.id "timesInput" ! A.value "1"
+      text "#"
+      textInput "dice" ! A.id "diceInput"
+      text "d"
+      textInput "faces" ! A.id "facesInput"
+      text "+"
+      textInput "mod" ! A.id "modInput" ! A.value "0")]
   submitButton "Roll!"
  where
   nameInput = maybe id (flip (!) . A.value . toValue) defaultPerson $
@@ -159,9 +160,10 @@ rollSubmitForm defaultPerson = form ! A.method "post" ! A.id "rollSubmit" $ do
 rollerRegisterForm :: Html
 rollerRegisterForm = form ! A.method "post" ! A.id "rollerRegister" $ do
   p (text "Register yourself:")
-  text "Name: " >> textInput "registerName" >> br
-  text "Password: " >> passwordInput "registerPassword" >> br
-  text "Retype: " >> passwordInput "registerConfirm" >> br
+  table . mapM_ (\(t,i) -> tr (td (text t) >> td i)) $ [
+    ("Name:", textInput "registerName"),
+    ("Password:", passwordInput "registerPassword"),
+    ("Retype:", passwordInput "registerConfirm")]
   submitButton "Make me a roller!"
 
 textInput :: AttributeValue -> Html
